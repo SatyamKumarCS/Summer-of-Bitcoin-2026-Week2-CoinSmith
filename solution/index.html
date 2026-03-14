@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coin Smith — PSBT Transaction Builder</title>
+<meta name="description" content="Build and visualize Bitcoin PSBT transactions with coin selection, fee estimation, and safety warnings.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #111318;
+    --bg-card: #1a1d24;
+    --bg-input: #0d0f13;
+    --border: #2a2d35;
+    --border-focus: #f7931a;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --text-muted: #5a5e6a;
+    --orange: #f7931a;
+    --orange-dim: rgba(247,147,26,0.12);
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.1);
+    --yellow: #eab308;
+    --yellow-bg: rgba(234,179,8,0.1);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.1);
+    --blue: #3b82f6;
+    --blue-bg: rgba(59,130,246,0.1);
+    --radius: 10px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 20px 16px;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 32px 0 24px;
+  }
+
+  header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--orange);
+    margin-bottom: 4px;
+  }
+
+  header p {
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  /* Textarea */
+  .fixture-input {
+    width: 100%;
+    min-height: 180px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    padding: 14px;
+    resize: vertical;
+    outline: none;
+  }
+
+  .fixture-input:focus {
+    border-color: var(--orange);
+  }
+
+  .fixture-input::placeholder { color: var(--text-muted); }
+
+  /* Buttons */
+  .btn-row { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-primary {
+    background: var(--orange);
+    color: #000;
+  }
+
+  .btn-primary:hover { opacity: 0.9; }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--text-dim);
+    color: var(--text);
+  }
+
+  .btn:disabled { opacity:0.4; cursor:not-allowed; }
+
+  /* Stats */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .stat-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* Tables */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .data-table th {
+    text-align: left;
+    padding: 8px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .data-table td {
+    padding: 10px;
+    border-bottom: 1px solid rgba(42,45,53,0.6);
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+
+  .data-table tr:last-child td { border-bottom:none; }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .badge-change { background:var(--blue-bg); color:var(--blue); }
+  .badge-payment { background:var(--green-bg); color:var(--green); }
+  .badge-script { background:var(--orange-dim); color:var(--orange); }
+
+  /* Warnings */
+  .warning-list { display:flex; flex-wrap:wrap; gap:8px; }
+
+  .warning-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .warning-HIGH_FEE { background:var(--red-bg); color:var(--red); }
+  .warning-SEND_ALL { background:var(--yellow-bg); color:var(--yellow); }
+  .warning-RBF_SIGNALING { background:var(--blue-bg); color:var(--blue); }
+  .warning-DUST_CHANGE { background:var(--red-bg); color:var(--red); }
+
+  /* PSBT */
+  .psbt-display {
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    word-break: break-all;
+    color: var(--text-muted);
+    max-height: 100px;
+    overflow-y: auto;
+    line-height: 1.7;
+  }
+
+  /* Status row */
+  .status-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .status-dot.active { background:var(--green); }
+  .status-dot.inactive { background:var(--text-muted); }
+  .status-dot.warning { background:var(--yellow); }
+
+  /* Layout */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 768px) {
+    .grid-2 { grid-template-columns:1fr; }
+    header h1 { font-size:22px; }
+    .stats-grid { grid-template-columns: repeat(2,1fr); }
+  }
+
+  /* Helpers */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  #result { display:none; }
+  #result.show { display:block; }
+
+  .error-box {
+    background: var(--red-bg);
+    border: 1px solid rgba(239,68,68,0.25);
+    border-radius: 8px;
+    padding: 14px 18px;
+    color: var(--red);
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  .error-box strong { display:block; margin-bottom:2px; }
+
+  .truncate {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: bottom;
+  }
+
+  .val-sats { color:var(--orange); font-weight:600; }
+
+  .no-warnings {
+    color: var(--green);
+    font-size: 13px;
+  }
+
+  .file-upload { position:relative; display:inline-flex; }
+  .file-upload input[type="file"] {
+    position:absolute; inset:0; opacity:0; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Coin Smith</h1>
+    <p>PSBT Transaction Builder</p>
+  </header>
+
+  <div class="card">
+    <div class="card-title">Fixture Input</div>
+    <textarea id="fixture-input" class="fixture-input"
+      placeholder='Paste fixture JSON here or load a file...'></textarea>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="build-btn" onclick="buildPSBT()">Build PSBT</button>
+      <div class="file-upload">
+        <button class="btn btn-secondary">Load File</button>
+        <input type="file" accept=".json" onchange="loadFile(event)">
+      </div>
+      <button class="btn btn-secondary" onclick="loadSample()">Sample</button>
+    </div>
+  </div>
+
+  <div id="error-box" class="error-box" style="display:none"></div>
+
+  <div id="result">
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Inputs</div>
+        <div class="stat-value" id="stat-inputs">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Outputs</div>
+        <div class="stat-value" id="stat-outputs">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Fee</div>
+        <div class="stat-value val-sats" id="stat-fee">—</div>
+        <div class="stat-sub" id="stat-fee-sub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Fee Rate</div>
+        <div class="stat-value" id="stat-fee-rate">—</div>
+        <div class="stat-sub">sat/vB</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Size</div>
+        <div class="stat-value" id="stat-vbytes">—</div>
+        <div class="stat-sub">vBytes</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Network</div>
+        <div class="stat-value" id="stat-network" style="font-size:15px">—</div>
+      </div>
+    </div>
+
+    <div class="status-row">
+      <div class="status-item">
+        <div class="status-dot" id="rbf-dot"></div>
+        <span>RBF: <strong id="rbf-value">—</strong></span>
+      </div>
+      <div class="status-item">
+        <div class="status-dot" id="locktime-dot"></div>
+        <span>Locktime: <strong id="locktime-value">—</strong></span>
+      </div>
+      <div class="status-item">
+        <div class="status-dot" id="locktype-dot"></div>
+        <span>Type: <strong id="locktype-value">—</strong></span>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Selected Inputs</div>
+        <table class="data-table" id="inputs-table">
+          <thead>
+            <tr><th>TXID</th><th>Vout</th><th>Value</th><th>Type</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Outputs</div>
+        <table class="data-table" id="outputs-table">
+          <thead>
+            <tr><th>#</th><th>Value</th><th>Type</th><th>Role</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Warnings</div>
+      <div id="warnings-list" class="warning-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">PSBT (Base64)</div>
+      <div class="psbt-display" id="psbt-display"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="copyPSBT()">Copy</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API_URL = window.location.origin;
+
+const SAMPLE_FIXTURE = {
+  "network": "mainnet",
+  "utxos": [
+    {
+      "txid": "1111111111111111111111111111111111111111111111111111111111111111",
+      "vout": 0,
+      "value_sats": 100000,
+      "script_pubkey_hex": "00141111111111111111111111111111111111111111",
+      "script_type": "p2wpkh",
+      "address": "bc1qzyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3h8ffkz"
+    }
+  ],
+  "payments": [
+    {
+      "address": "bc1qyysjzgfpyysjzgfpyysjzgfpyysjzgfpf7224r",
+      "script_pubkey_hex": "00142121212121212121212121212121212121212121",
+      "script_type": "p2wpkh",
+      "value_sats": 70000
+    }
+  ],
+  "change": {
+    "address": "bc1qxycnzvf3xycnzvf3xycnzvf3xycnzvf36suk2s",
+    "script_pubkey_hex": "00143131313131313131313131313131313131313131",
+    "script_type": "p2wpkh"
+  },
+  "fee_rate_sat_vb": 5,
+  "rbf": true,
+  "policy": { "max_inputs": 5 }
+};
+
+function loadSample() {
+  document.getElementById('fixture-input').value = JSON.stringify(SAMPLE_FIXTURE, null, 2);
+}
+
+function loadFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('fixture-input').value = e.target.result;
+  };
+  reader.readAsText(file);
+}
+
+async function buildPSBT() {
+  const input = document.getElementById('fixture-input').value.trim();
+  const btn = document.getElementById('build-btn');
+  const errorBox = document.getElementById('error-box');
+  const resultDiv = document.getElementById('result');
+
+  errorBox.style.display = 'none';
+  resultDiv.classList.remove('show');
+
+  if (!input) {
+    showError('EMPTY_INPUT', 'Paste or load a fixture JSON first.');
+    return;
+  }
+
+  var fixture;
+  try {
+    fixture = JSON.parse(input);
+  } catch (e) {
+    showError('INVALID_JSON', 'Not valid JSON: ' + e.message);
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Building...';
+
+  try {
+    var res = await fetch(API_URL + '/api/build', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fixture),
+    });
+
+    var data = await res.json();
+
+    if (!data.ok) {
+      showError(data.error ? data.error.code : 'ERROR', data.error ? data.error.message : 'Unknown error');
+      return;
+    }
+
+    renderResult(data);
+  } catch (e) {
+    showError('NETWORK_ERROR', 'Could not reach server: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Build PSBT';
+  }
+}
+
+function showError(code, message) {
+  var box = document.getElementById('error-box');
+  box.innerHTML = '<strong>' + code + '</strong>' + message;
+  box.style.display = 'block';
+}
+
+function fmtSats(val) {
+  return val.toLocaleString() + ' sats';
+}
+
+function renderResult(data) {
+  var resultDiv = document.getElementById('result');
+
+  document.getElementById('stat-inputs').textContent = data.selected_inputs.length;
+  document.getElementById('stat-outputs').textContent = data.outputs.length;
+  document.getElementById('stat-fee').textContent = fmtSats(data.fee_sats);
+  document.getElementById('stat-fee-sub').textContent = data.vbytes + ' vB x ' + data.fee_rate_sat_vb + ' sat/vB';
+  document.getElementById('stat-fee-rate').textContent = data.fee_rate_sat_vb.toFixed(2);
+  document.getElementById('stat-vbytes').textContent = data.vbytes;
+  document.getElementById('stat-network').textContent = data.network;
+
+  // RBF
+  var rbfDot = document.getElementById('rbf-dot');
+  var rbfVal = document.getElementById('rbf-value');
+  if (data.rbf_signaling) {
+    rbfDot.className = 'status-dot warning';
+    rbfVal.textContent = 'On';
+    rbfVal.style.color = 'var(--yellow)';
+  } else {
+    rbfDot.className = 'status-dot inactive';
+    rbfVal.textContent = 'Off';
+    rbfVal.style.color = 'var(--text-muted)';
+  }
+
+  // Locktime
+  var ltDot = document.getElementById('locktime-dot');
+  var ltVal = document.getElementById('locktime-value');
+  if (data.locktime > 0) {
+    ltDot.className = 'status-dot active';
+    ltVal.textContent = data.locktime.toLocaleString();
+    ltVal.style.color = 'var(--green)';
+  } else {
+    ltDot.className = 'status-dot inactive';
+    ltVal.textContent = '0';
+    ltVal.style.color = 'var(--text-muted)';
+  }
+
+  var ltTypeDot = document.getElementById('locktype-dot');
+  var ltTypeVal = document.getElementById('locktype-value');
+  ltTypeVal.textContent = data.locktime_type;
+  ltTypeDot.className = data.locktime_type === 'none' ? 'status-dot inactive' : 'status-dot active';
+
+  // Inputs table
+  var itb = document.querySelector('#inputs-table tbody');
+  itb.innerHTML = '';
+  for (var i = 0; i < data.selected_inputs.length; i++) {
+    var inp = data.selected_inputs[i];
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><span class="truncate" title="' + inp.txid + '">' + inp.txid.slice(0,10) + '...</span></td>' +
+      '<td>' + inp.vout + '</td>' +
+      '<td class="val-sats">' + fmtSats(inp.value_sats) + '</td>' +
+      '<td><span class="badge badge-script">' + inp.script_type + '</span></td>';
+    itb.appendChild(tr);
+  }
+
+  // Outputs table
+  var otb = document.querySelector('#outputs-table tbody');
+  otb.innerHTML = '';
+  for (var j = 0; j < data.outputs.length; j++) {
+    var out = data.outputs[j];
+    var role = out.is_change
+      ? '<span class="badge badge-change">Change</span>'
+      : '<span class="badge badge-payment">Payment</span>';
+    var tr2 = document.createElement('tr');
+    tr2.innerHTML =
+      '<td>' + out.n + '</td>' +
+      '<td class="val-sats">' + fmtSats(out.value_sats) + '</td>' +
+      '<td><span class="badge badge-script">' + out.script_type + '</span></td>' +
+      '<td>' + role + '</td>';
+    otb.appendChild(tr2);
+  }
+
+  // Warnings
+  var wl = document.getElementById('warnings-list');
+  wl.innerHTML = '';
+  if (data.warnings.length === 0) {
+    wl.innerHTML = '<div class="no-warnings">No warnings</div>';
+  } else {
+    for (var k = 0; k < data.warnings.length; k++) {
+      var w = data.warnings[k];
+      var chip = document.createElement('div');
+      chip.className = 'warning-chip warning-' + w.code;
+      chip.textContent = w.code;
+      wl.appendChild(chip);
+    }
+  }
+
+  // PSBT
+  document.getElementById('psbt-display').textContent = data.psbt_base64;
+  resultDiv.classList.add('show');
+}
+
+function copyPSBT() {
+  var psbt = document.getElementById('psbt-display').textContent;
+  navigator.clipboard.writeText(psbt).then(function() {
+    var btn = event.target;
+    var orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = orig; }, 1500);
+  });
+}
+</script>
+
+</body>
+</html>
