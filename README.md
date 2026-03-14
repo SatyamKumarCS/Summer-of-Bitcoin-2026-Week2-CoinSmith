@@ -1,4 +1,4 @@
-# ⚒️ Coin Smith — Bitcoin PSBT Transaction Builder
+# Coin Smith — Bitcoin PSBT Transaction Builder
 
 > **Summer of Bitcoin 2026 — Week 2 Challenge**
 > A safe, protocol-correct PSBT transaction builder with a coin selection engine, defensive validation, and a visual web UI.
@@ -9,7 +9,7 @@
 
 ---
 
-## 🎯 What It Does
+## What It Does
 
 Coin Smith takes a **fixture** (a wallet's UTXO set, payment targets, change address, and fee rate) and produces:
 
@@ -22,7 +22,7 @@ Coin Smith takes a **fixture** (a wallet's UTXO set, payment targets, change add
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -59,7 +59,7 @@ Open the URL in your browser, paste a fixture JSON, and click **Build PSBT** to 
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 solution/
@@ -94,21 +94,21 @@ The **CLI** and **Web UI** share the exact same build engine — zero code dupli
 
 ---
 
-## ⚙️ Core Features
+## Core Features
 
-### 🪙 Coin Selection
+### Coin Selection
 - **Greedy largest-first** strategy: sorts UTXOs descending by value, accumulates until target is met
 - Respects `max_inputs` policy constraints
 - Minimizes input count → smaller tx → lower fee
 
-### 💰 Fee & Change Handling
+### Fee & Change Handling
 - **Two-pass approach** to solve the fee/change feedback loop:
   - Pass 1: estimate with change output → check if change > dust threshold (546 sats)
   - Pass 2: if change is dust, switch to send-all mode (absorb leftover as fee)
 - **Iterative convergence** (up to 10 attempts) for boundary cases
 - Balance invariant: `sum(inputs) = sum(outputs) + fee`
 
-### 🔄 RBF & Locktime
+### RBF & Locktime
 Follows the spec's interaction matrix for `nSequence` and `nLockTime`:
 
 | rbf | locktime | current_height | nSequence | nLockTime |
@@ -122,12 +122,12 @@ Follows the spec's interaction matrix for `nSequence` and `nLockTime`:
 - **Anti-fee-sniping**: when `rbf: true` + `current_height` present, sets `nLockTime = current_height`
 - **Locktime classification**: `none` / `block_height` / `unix_timestamp` based on the 500M boundary
 
-### 📦 PSBT Construction (BIP-174)
+### PSBT Construction (BIP-174)
 - Built from scratch — magic bytes, global unsigned tx, per-input `witness_utxo` maps
 - Standard Bitcoin transaction serialization with proper CompactSize encoding
 - All txids correctly reversed for internal byte representation
 
-### ⚠️ Safety Warnings
+### Safety Warnings
 
 | Code | Trigger |
 |------|---------|
@@ -138,7 +138,7 @@ Follows the spec's interaction matrix for `nSequence` and `nLockTime`:
 
 ---
 
-## 🌐 Web UI & API
+## Web UI & API
 
 ### API Endpoints
 
@@ -159,7 +159,7 @@ Follows the spec's interaction matrix for `nSequence` and `nLockTime`:
 
 ---
 
-## 📏 Weight Estimation
+## Weight Estimation
 
 Per-script-type weights used for vBytes calculation:
 
@@ -175,7 +175,7 @@ Per-script-type weights used for vBytes calculation:
 
 ---
 
-## 🧪 Test Results
+## Test Results
 
 **All 347 / 347 tests passed ✅**
 
@@ -212,7 +212,7 @@ cd solution && python3 -m pytest test_builder.py -v
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Component | Technology |
 |-----------|------------|
@@ -225,7 +225,7 @@ cd solution && python3 -m pytest test_builder.py -v
 
 ---
 
-## 📚 Key Learnings
+## Key Learnings
 
 1. **Fee estimation is a constraint satisfaction problem** — the interdependence between transaction size, fee, and change creates a system that must be solved iteratively
 2. **UTXO management involves real tradeoffs** — fee minimization vs. privacy vs. consolidation vs. change creation
@@ -235,7 +235,7 @@ cd solution && python3 -m pytest test_builder.py -v
 
 ---
 
-## 👤 Author
+## Author
 
 **Satyam Kumar** — Summer of Bitcoin 2026 Developer Challenge
 
